@@ -1,4 +1,7 @@
 class Faceset{
+	const BLINK_FRAMES = 2;
+	const MOUTH_FRAMES = 4;
+
 	constructor(name){
 		this.name = name;
 		this.position = null;
@@ -28,15 +31,13 @@ class Faceset{
 
 
 	setCurrentEyeFrame(newFrame){
-		newFrame = Number(newFrame);
-		this.currentEyeFrame = newFrame;
+		this.currentEyeFrame = Number(newFrame);
 		updateComposite();
 	}
 
 
 	setCurrentMouthFrame(newFrame){
-		newFrame = Number(newFrame);
-		this.currentMouthFrame = newFrame;
+		this.currentMouthFrame = Number(newFrame);
 		updateComposite();
 	}
 
@@ -48,26 +49,28 @@ class Faceset{
 
 
 	setTalkFrequency(amount){
-		amount = Number(amount);
-		this.talkFrequency = amount;
+		this.talkFrequency = Number(amount);
 	}
 
 
 	setBlinkFrequency(amount){
-		amount = Number(amount);
-		this.blinkFrequency = amount;
+		this.blinkFrequency = Number(amount);
 	}
 
 
-	//Updates stored composite information
+	setTalkTime(time){
+		this.talkTime = Number(time); 
+	}
+
+
 	updateComposite(){
-		this.composite.set('base', getImageName("base"));
-		this.composite.set('eyes', getImageName("eyes"));
-		this.composite.set('mouth', getImageName("mouth"));
+		this.composite.set('base', _getImageName("base"));
+		this.composite.set('eyes', _getImageName("eyes"));
+		this.composite.set('mouth', _getImageName("mouth"));
 	}
 
 
-	//Show Faceset Images and start the controller
+	//Show Faceset Images and start the controller 
 	show(){
 		this.isShowing = true;
 
@@ -76,38 +79,40 @@ class Faceset{
 		displayImage(this.composite.get('base'));
 		displayImage(this.composite.get('eyes'));
 		displayImage(this.composite.get('mouth'));
+
+		manageFacialMovements();
 	}
 
 
-	//Main Faceset Controller
-	controller(){
-		var blinkTimer = this.blinkFrequency;
-		var talkTimer = this.talkFrequency;
+	manageFacialMovements(){ 
+		let blinkTimer = this.blinkFrequency;
+		let talkTimer = this.talkFrequency;
 
 		while(this.isShowing){
-			if(blinkTimer == 0){ // Blink Frequency
-				blink();
+			if(blinkTimer <= 0){
+				_blink();
 				blinkTimer = this.blinkFrequency;
 			}
 
-			if(talkTimer == 0){ // Mouth Frequency
-				mouth();
+			if(talkTimer <= 0){
+				_moveMouth();
 				talkTimer = this.talkFrequency;
 			}
 
 			waitFrames(1);
 			if(talkTime > 0){
-				talkTimer -= getRandomIncrement();
-				talkTime--;
+				talkTimer -= this._getRandomIncrement();
+				this.talkTime--; 
 			}
-			blinkTimer -=  getRandomIncrement();
+			
+			blinkTimer -=  this._getRandomIncrement();
 		}
 	}
 
 
-	//Return random value from 0 to 10
-	getRandomIncrement(){
-		return Math.floor(Math.random() * 10);
+	//Return random value from 1 to 10
+	_getRandomIncrement(){ 
+		return Math.floor(Math.random() * 10. + 1); 
 	}
 
 
@@ -121,92 +126,83 @@ class Faceset{
 	}
 
 
-	//Displays named image at stored location
 	showImage(imageName){
 		//TO-DO
 	}
 
 
-	//Hides named image
 	hideImage(imageName){
 		//TO-DO
 	}
 
 
-	//Waits requested number of frames
 	waitFrames(amount){
 		//TO-DO
 	}
 
 
 	//Gets requested layer of the Faceset image
-	getImageName(layer){
-		var imageName = name + "_" + position;
+	_getImageName(layer){
+		let imageName = this.name + "_" + this.position;
 
 		if(layer == 'eyes'){
-			imageName += "_eyes_" + expression + 0;
+			imageName += "_eyes_" + this.expression + this.currentEyeFrame;
 		} else if(layer == 'mouth'){
-			imageName += "_mouth_" + expression + 0;
+			imageName += "_mouth_" + this.expression + this.currentMouthFrame; 
 		}
 
 		return imageName;
 	}
 
 
-	//Talk for requested time
-	talk(time){
-		time = Number(time);
-		this.talkTime = time;
+	_blink(){
+		this._cycleImages(this.composite.get('eyes'), this.BLINK_FRAMES, currentEyeFrame);
 	}
 
 
-	//Perform a single blink animation
-	blink(){
-		cycleImages(this.composite.get('eyes'), 2, currentEyeFrame);
-	}
-
-
-	//Perform a single mouth cycle
-	mouth(){
-		cycleImages(this.composite.get('mouth'), 4, currentMouthFrame);
+	_moveMouth(){
+		this._cycleImages(this.composite.get('mouth'), this.MOUTH_FRAMES, currentMouthFrame);
 	}
 
 
 	//Cycles through images from 0 to limit and back (inclusive)
-	cycleImages(name, limit, baseFrame){
-		baseName = name.substring(0, name.length - 1);
-		limit = Number(limit);
-		baseFrame = Number(baseFrame);
-		waitTime = 2;
+	_cycleImages(name, limit, baseFrame){
+		let baseName = _trimTrailingIndex(name);
+		let waitTime = 2;
 
-		for(int i = baseFrame; i <= limit;){
+		for(let i = baseFrame; i <= limit; i++){
 			hideImage(baseName + i);
-			i++;
-			showImage(baseName + i);
+			showImage(baseName + i+1);
 			waitFrames(waitTime++);
 		}
 
-		for(int i = limit; i >= baseFrame;){
+		for(let i = limit; i >= baseFrame; i--){
 			hideImage(baseName + i);
-			i--;
-			showImage(baseName + i);
+			showImage(baseName + i-1);
 			waitFrames(waitTime--);
 		}
 	}
 
-	//Cycles through images in the order of the pattern
-	cycleImagesPattern(name, pattern, baseFrame){
-		baseName = name.substring(0, name.length - 1);
-		pattern = pattern.split(",");
-		baseFrame = Number(baseFrame);
-		waitTime = 2;
+	_cycleImagesBySequence(name, sequence, baseFrame){
+		baseName = _trimTrailingIndex(name);
+		
+		let baseImage = baseName + baseFrame;
+		let waitTime = 2;
 
-		hideImage(baseName + baseFrame);
-		for(i in pattern){
-			showImage(baseName + i);
+		hideImage(baseImage);
+		
+		for(frame in sequence){
+			let currentFrame = baseName + frame;
+			
+			showImage(currentFrame);
 			waitFrames(waitTime);
-			hideImage(baseName + i);
+			hideImage(currentFrame);
 		}
-		showImage(baseName + baseFrame);
+		
+		showImage(baseImage);
+	}
+
+	_trimTrailingIndex(name){
+		return name.substring(0, name.length - 1);
 	}
 }
